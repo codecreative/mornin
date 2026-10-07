@@ -61,3 +61,21 @@ mornin list
 ```
 
 Run `mornin add` or `mornin remove` with no arguments from inside a repository to target the current directory. `add` requires the path to be an existing Git repository and ignores duplicates. `remove` matches by resolved path (so it works regardless of whether the entry is stored with `~` or as an absolute path) and also works on stale entries whose directory no longer exists.
+
+Show this usage summary at any time:
+
+```bash
+mornin help
+```
+
+(`mornin -h` and `mornin --help` both work too.)
+
+## Uninstallation
+
+```bash
+mornin uninstall
+```
+
+(Equivalent to running `./uninstall.sh` from wherever you cloned the repository — `mornin uninstall` just finds it for you.)
+
+This removes the `mornin` command from `~/.local/bin` and asks before deleting your configuration at `~/.config/mornin` (your tracked repo list), since that's your data. It leaves `~/.local/bin` on your `PATH` alone, since other tools may depend on it being there.

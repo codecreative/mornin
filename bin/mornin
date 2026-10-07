@@ -1,6 +1,29 @@
 #!/bin/zsh
 
+if [[ -z "$ZSH_VERSION" ]]; then
+    echo "❌ mornin requires zsh. Run it as mornin, or: zsh $0" >&2
+    exit 1
+fi
+
 CONFIG="$HOME/.config/mornin/repos"
+
+if [[ "$1" == "help" || "$1" == "-h" || "$1" == "--help" ]]; then
+    cat <<EOF
+mornin ☀️ — check tracked Git repositories for updates and optionally pull them.
+
+Usage:
+  mornin                  Check tracked repositories and pull if needed
+  mornin add [path]       Track a repository (defaults to the current directory)
+  mornin remove [path]    Stop tracking a repository (defaults to the current directory)
+  mornin list             List tracked repositories (alias: ls)
+  mornin uninstall        Remove the mornin command (asks before deleting config)
+  mornin help             Show this help (aliases: -h, --help)
+
+Config file:
+  $CONFIG
+EOF
+    exit 0
+fi
 
 if [[ "$1" == "add" ]]; then
     target="${2:-$PWD}"
@@ -85,6 +108,19 @@ if [[ "$1" == "remove" ]]; then
     fi
 
     exit 0
+fi
+
+if [[ "$1" == "uninstall" ]]; then
+    REPO_DIR="$(cd "$(dirname "${0:A}")/.." && pwd)"
+    UNINSTALL_SCRIPT="$REPO_DIR/uninstall.sh"
+
+    if [[ ! -f "$UNINSTALL_SCRIPT" ]]; then
+        echo "❌ Could not find uninstall.sh at $UNINSTALL_SCRIPT"
+        echo "   The mornin repository may have been moved or deleted."
+        exit 1
+    fi
+
+    exec zsh "$UNINSTALL_SCRIPT"
 fi
 
 if [[ "$1" == "list" || "$1" == "ls" ]]; then
