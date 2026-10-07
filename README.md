@@ -29,8 +29,8 @@ Git is normally already available on macOS.
 Clone the repository:
 
 ```bash
-git clone <REPOSITORY_URL> ~/projects/mornin
-cd ~/projects/mornin
+git clone https://github.com/codecreative/mornin.git
+cd mornin
 ./install.sh
 ```
 
