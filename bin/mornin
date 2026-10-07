@@ -110,6 +110,56 @@ if [[ "$1" == "remove" ]]; then
     exit 0
 fi
 
+if [[ "$1" == "update" ]]; then
+    REPO_DIR="$(cd "$(dirname "${0:A}")/.." && pwd)"
+
+    if ! git -C "$REPO_DIR" rev-parse --git-dir &>/dev/null; then
+        echo "❌ $REPO_DIR doesn't look like a Git repository."
+        echo "   Can't update automatically — try pulling it manually."
+        exit 1
+    fi
+
+    if [[ -n "$(git -C "$REPO_DIR" status --porcelain --untracked-files=no)" ]]; then
+        echo "⚠️  $REPO_DIR has uncommitted changes:"
+        git -C "$REPO_DIR" status --short --untracked-files=no
+        echo "   Resolve or commit them, then run 'mornin update' again."
+        exit 1
+    fi
+
+    echo "Checking for updates in $REPO_DIR..."
+
+    if ! git -C "$REPO_DIR" fetch; then
+        echo "❌ Fetch failed. Check your network connection and Git credentials."
+        exit 1
+    fi
+
+    branch="$(git -C "$REPO_DIR" branch --show-current)"
+    upstream="$(git -C "$REPO_DIR" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null)"
+
+    if [[ -z "$upstream" ]]; then
+        echo "ℹ️  $branch has no upstream branch — can't check for updates."
+        exit 1
+    fi
+
+    behind=$(git -C "$REPO_DIR" rev-list --count HEAD.."$upstream")
+
+    if (( behind == 0 )); then
+        echo "✅ Already up to date."
+        exit 0
+    fi
+
+    echo "⬇️  $behind commit(s) behind. Pulling..."
+
+    if git -C "$REPO_DIR" pull; then
+        echo "✅ Updated successfully."
+    else
+        echo "❌ Pull failed."
+        exit 1
+    fi
+
+    exit 0
+fi
+
 if [[ "$1" == "uninstall" ]]; then
     REPO_DIR="$(cd "$(dirname "${0:A}")/.." && pwd)"
     UNINSTALL_SCRIPT="$REPO_DIR/uninstall.sh"
