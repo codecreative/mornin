@@ -1,0 +1,15 @@
+# Repositories to check with mornin.
+#
+# One repository per line.
+# Blank lines and lines beginning with # are ignored.
+# You can use ~ for your home directory.
+#
+# Add a repository without editing this file:
+#   mornin add|remove ~/projects/my-project
+#   or
+#   mornin add|remove to add or remove the current directory from the list
+#
+# Or uncomment and edit the examples below.
+
+# ~/projects/my-project
+# ~/projects/another-project

@@ -1,0 +1,229 @@
+#!/bin/zsh
+
+CONFIG="$HOME/.config/mornin/repos"
+
+if [[ "$1" == "add" ]]; then
+    target="${2:-$PWD}"
+    target="${target/#\~/$HOME}"
+    target="$(cd "$target" 2>/dev/null && pwd)"
+
+    if [[ -z "$target" ]]; then
+        echo "❌ Not a directory: ${2:-$PWD}"
+        exit 1
+    fi
+
+    if ! git -C "$target" rev-parse --git-dir &>/dev/null; then
+        echo "❌ Not a Git repository: $target"
+        exit 1
+    fi
+
+    mkdir -p "$(dirname "$CONFIG")"
+    touch "$CONFIG"
+
+    display_path="$target"
+    [[ "$target" == "$HOME"* ]] && display_path="~${target#$HOME}"
+
+    while IFS= read -r line; do
+        [[ -z "$line" || "$line" == \#* ]] && continue
+        existing="${line/#\~/$HOME}"
+        existing="$(cd "$existing" 2>/dev/null && pwd)"
+        if [[ "$existing" == "$target" ]]; then
+            echo "ℹ️  Already tracked: $display_path"
+            exit 0
+        fi
+    done < "$CONFIG"
+
+    echo "$display_path" >> "$CONFIG"
+    echo "✅ Added $display_path"
+    exit 0
+fi
+
+if [[ "$1" == "remove" ]]; then
+    if [[ ! -f "$CONFIG" ]]; then
+        echo "❌ No repository configuration found:"
+        echo "   $CONFIG"
+        exit 1
+    fi
+
+    target="${2:-$PWD}"
+    target="${target/#\~/$HOME}"
+    target="${target%/}"
+    resolved="$(cd "$target" 2>/dev/null && pwd)"
+    [[ -n "$resolved" ]] && target="$resolved"
+
+    display_path="$target"
+    [[ "$target" == "$HOME"* ]] && display_path="~${target#$HOME}"
+
+    tmp="$(mktemp)"
+    removed=0
+
+    while IFS= read -r line; do
+        if [[ -z "$line" || "$line" == \#* ]]; then
+            echo "$line" >> "$tmp"
+            continue
+        fi
+
+        existing="${line/#\~/$HOME}"
+        existing="${existing%/}"
+        resolved_existing="$(cd "$existing" 2>/dev/null && pwd)"
+        [[ -n "$resolved_existing" ]] && existing="$resolved_existing"
+
+        if [[ "$existing" == "$target" ]]; then
+            removed=1
+            continue
+        fi
+
+        echo "$line" >> "$tmp"
+    done < "$CONFIG"
+
+    if (( removed )); then
+        mv "$tmp" "$CONFIG"
+        echo "✅ Removed $display_path"
+    else
+        rm -f "$tmp"
+        echo "ℹ️  Not tracked: $display_path"
+    fi
+
+    exit 0
+fi
+
+if [[ "$1" == "list" || "$1" == "ls" ]]; then
+    if [[ ! -f "$CONFIG" ]]; then
+        echo "❌ No repository configuration found:"
+        echo "   $CONFIG"
+        exit 1
+    fi
+
+    count=0
+
+    while IFS= read -r line; do
+        [[ -z "$line" || "$line" == \#* ]] && continue
+        count=$(( count + 1 ))
+
+        repo="${line/#\~/$HOME}"
+        note=""
+
+        if [[ ! -d "$repo" ]]; then
+            note="⚠️  directory doesn't exist"
+        elif ! git -C "$repo" rev-parse --git-dir &>/dev/null; then
+            note="⚠️  not a Git repository"
+        fi
+
+        printf "📦 %-20s %s" "$(basename "$repo")" "$line"
+        [[ -n "$note" ]] && printf "   %s" "$note"
+        printf "\n"
+    done < "$CONFIG"
+
+    echo
+    if (( count == 0 )); then
+        echo "No repositories tracked yet."
+        echo "Add one with: mornin add <path>"
+    elif (( count == 1 )); then
+        echo "1 repository tracked"
+    else
+        echo "$count repositories tracked"
+    fi
+
+    exit 0
+fi
+
+if [[ ! -f "$CONFIG" ]]; then
+    echo "❌ No repository configuration found:"
+    echo "   $CONFIG"
+    exit 1
+fi
+
+echo "☀️  Good mornin’!"
+echo
+
+count=0
+
+while IFS= read -r repo <&3; do
+    [[ -z "$repo" || "$repo" == \#* ]] && continue
+    count=$(( count + 1 ))
+
+    repo="${repo/#\~/$HOME}"
+
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "📦 $(basename "$repo")"
+    echo "   $repo"
+
+    if [[ ! -d "$repo" ]]; then
+        echo "   ⚠️  Directory doesn't exist — skipping"
+        echo
+        continue
+    fi
+
+    if ! git -C "$repo" rev-parse --git-dir &>/dev/null; then
+        echo "   ⚠️  Not a Git repository — skipping"
+        echo
+        continue
+    fi
+
+    branch="$(git -C "$repo" branch --show-current)"
+
+    if [[ -n "$(git -C "$repo" status --porcelain --untracked-files=no)" ]]; then
+        echo "   ⚠️  Uncommitted changes:"
+        git -C "$repo" status --short --untracked-files=no
+        echo "   Pulling is disabled for this repo."
+        echo
+        continue
+    fi
+
+    echo "   Checking remote..."
+
+    if ! git -C "$repo" fetch; then
+        echo "   ❌ Fetch failed"
+        echo "      Check your network connection and Git credentials."
+        echo
+        continue
+    fi
+
+    upstream="$(git -C "$repo" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null)"
+
+    if [[ -z "$upstream" ]]; then
+        echo "   ℹ️  $branch has no upstream branch"
+        echo
+        continue
+    fi
+
+    behind=$(git -C "$repo" rev-list --count HEAD.."$upstream")
+    ahead=$(git -C "$repo" rev-list --count "$upstream"..HEAD)
+
+    if (( behind == 0 && ahead == 0 )); then
+        echo "   ✅ Up to date ($branch)"
+        echo
+        continue
+    fi
+
+    (( ahead > 0 )) && echo "   ⬆️  $ahead commit(s) ahead of remote"
+    (( behind > 0 )) && echo "   ⬇️  $behind commit(s) behind remote"
+
+    if (( behind > 0 )); then
+        echo
+        read "answer?   Pull latest changes? [y/N] "
+
+        if [[ "$answer" =~ ^[Yy]$ ]]; then
+            echo
+            if git -C "$repo" pull; then
+                echo "   ✅ Updated successfully"
+            else
+                echo "   ❌ Pull failed"
+            fi
+        else
+            echo "   Skipped"
+        fi
+    fi
+
+    echo
+
+done 3< "$CONFIG"
+
+if (( count == 0 )); then
+    echo "No repositories tracked yet."
+    echo "Add one with: mornin add <path>"
+    echo "Or run 'mornin add' from inside a repository to add the current directory."
+    echo
+fi
+
+echo "☕ Done."
