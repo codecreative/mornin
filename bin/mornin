@@ -16,6 +16,7 @@ Usage:
   mornin add [path]       Track a repository (defaults to the current directory)
   mornin remove [path]    Stop tracking a repository (defaults to the current directory)
   mornin list             List tracked repositories (alias: ls)
+  mornin update           Pull the latest version of mornin itself
   mornin uninstall        Remove the mornin command (asks before deleting config)
   mornin help             Show this help (aliases: -h, --help)
 

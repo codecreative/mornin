@@ -70,6 +70,16 @@ mornin help
 
 (`mornin -h` and `mornin --help` both work too.)
 
+## Updating
+
+Pull the latest version of `mornin` itself:
+
+```bash
+mornin update
+```
+
+This runs `git pull` in the clone you installed from. It fetches first, stops if that clone has uncommitted changes to tracked files and does nothing when you're already up to date. It needs the clone to still exist and have an upstream branch.
+
 ## Uninstallation
 
 ```bash
